@@ -7,6 +7,7 @@ async function getNewFeedItemsFrom(feedUrl) {
   let rss;
   try {
     rss = await parser.parseURL(feedUrl);
+   // console.log(rss, 'rss');
   } catch (error) {
     console.error(error);
     return [];
@@ -23,12 +24,14 @@ export default async function getNewFeedItems() {
   let allNewFeedItems = [];
 
   const feeds = await getFeedUrlsFromNotion();
+  //console.log(feeds, 'feeds');
 
   for (let i = 0; i < feeds.length; i++) {
     const { feedUrl } = feeds[i];
     const feedItems = await getNewFeedItemsFrom(feedUrl);
     allNewFeedItems = [...allNewFeedItems, ...feedItems];
   }
+  //console.log(allNewFeedItems, "rss-parser")
 
   // sort feed items by published date
   allNewFeedItems.sort((a, b) => new Date(a.pubDate) - new Date(b.pubDate));

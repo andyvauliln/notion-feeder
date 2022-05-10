@@ -47,7 +47,16 @@ export async function getFeedUrlsFromNotion() {
 }
 
 export async function addFeedItemToNotion(notionItem) {
-  const { title, link, content } = notionItem;
+  const {
+    title,
+    link,
+    categories,
+    creator,
+    content,
+    contentSnippet,
+    description,
+    image,
+  } = notionItem;
 
   const notion = new Client({
     auth: NOTION_API_TOKEN,
@@ -58,6 +67,12 @@ export async function addFeedItemToNotion(notionItem) {
     await notion.pages.create({
       parent: {
         database_id: NOTION_READER_DATABASE_ID,
+      },
+      cover: {
+        type: 'external',
+        external: {
+          url: image,
+        },
       },
       properties: {
         Title: {
@@ -72,13 +87,66 @@ export async function addFeedItemToNotion(notionItem) {
         Link: {
           url: link,
         },
+        Categories: {
+          multi_select: categories.map((r) => ({ name: r })),
+        },
+        Creator: {
+          rich_text: [
+            {
+              type: 'text',
+              text: {
+                content: creator,
+              },
+            },
+          ],
+        },
+        ContentSnippet: {
+          rich_text: [
+            {
+              type: 'text',
+              text: {
+                content: contentSnippet.substring(0, 1000),
+              },
+            },
+          ],
+        },
+        Description: {
+          rich_text: [
+            {
+              type: 'text',
+              text: {
+                content: description ? JSON.stringify(description) : '',
+              },
+            },
+          ],
+        },
       },
-      children: content,
+      children: [
+        {
+          object: 'block',
+          type: 'embed',
+          embed: {
+            url: link,
+          },
+        },
+      ],
     });
   } catch (err) {
     console.error(err);
   }
 }
+
+// format?: {
+//   block_width: number
+//   block_height: number
+//   display_source: string
+//   block_full_width: boolean
+//   block_page_width: boolean
+//   block_aspect_ratio: number
+//   block_preserve_scale: boolean
+// }
+// file_ids?: string[]
+// }
 
 export async function deleteOldUnreadFeedItemsFromNotion() {
   const notion = new Client({
