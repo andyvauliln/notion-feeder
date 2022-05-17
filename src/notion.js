@@ -136,6 +136,15 @@ export async function addFeedItemToNotion(notionItem) {
   }
 }
 
+// format:
+// block_full_width: false
+// block_height: 930
+// block_page_width: true
+// block_preserve_scale: false
+// block_width: 672
+// display_source: "https://news.bitcoin.com/nigerian-fintech-founder-african-fintechs-have-a-greater-scale-potential-than-other-tech-startups/"
+
+
 // format?: {
 //   block_width: number
 //   block_height: number
