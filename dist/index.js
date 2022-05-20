@@ -48228,6 +48228,22 @@ async function addFeedItemToNotion(notionItem) {
 // file_ids?: string[]
 // }
 
+async function getExistingPages(items) {
+  const notion = new src/* Client */.KU({
+    auth: NOTION_API_TOKEN,
+    logLevel
+  });
+  const response = await notion.databases.query({
+    database_id: NOTION_READER_DATABASE_ID,
+    or: items.map(item => ({
+      property: 'Link',
+      text: {
+        equals: item.link
+      }
+    }))
+  });
+  return response.results;
+}
 async function deleteOldUnreadFeedItemsFromNotion() {
   const notion = new src/* Client */.KU({
     auth: NOTION_API_TOKEN,
@@ -49297,11 +49313,13 @@ function htmlToNotionBlocks(htmlContent) {
 
 
 async function index() {
-  //console.log('Start','data' );
-  const feedItems = await getNewFeedItems(); //console.log(feedItems, "feedItems" );
+  const feedItems = await getNewFeedItems();
+  const existingPages = await getExistingPages(feedItems);
 
   for (let i = 0; i < feedItems.length; i++) {
     const item = feedItems[i];
+    const existingEntries = existingPages.find(page => page.properties.Link.url === item.link);
+    const isNewEntry = existingEntries === undefined;
     const notionItem = {
       title: item.title,
       link: item.link,
@@ -49313,11 +49331,11 @@ async function index() {
       description: item.description,
       contentRaw: item['content:encoded'],
       content: htmlToNotionBlocks(item.content)
-    }; //console.log('___________________________________________________');
-    //console.log(item);
-    //console.log('___________________________________________________');
+    };
 
-    await addFeedItemToNotion(notionItem);
+    if (isNewEntry) {
+      await addFeedItemToNotion(notionItem);
+    }
   }
 
   await deleteOldUnreadFeedItemsFromNotion();
