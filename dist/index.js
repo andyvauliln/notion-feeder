@@ -48134,7 +48134,12 @@ async function addFeedItemToNotion(notionItem) {
   const {
     title,
     link,
-    content
+    categories,
+    creator,
+    content,
+    contentSnippet,
+    description,
+    image
   } = notionItem;
   const notion = new src/* Client */.KU({
     auth: NOTION_API_TOKEN,
@@ -48146,6 +48151,12 @@ async function addFeedItemToNotion(notionItem) {
       parent: {
         database_id: NOTION_READER_DATABASE_ID
       },
+      cover: {
+        type: 'external',
+        external: {
+          url: image
+        }
+      },
       properties: {
         Title: {
           title: [{
@@ -48156,14 +48167,67 @@ async function addFeedItemToNotion(notionItem) {
         },
         Link: {
           url: link
+        },
+        Categories: {
+          multi_select: categories.map(r => ({
+            name: r
+          }))
+        },
+        Creator: {
+          rich_text: [{
+            type: 'text',
+            text: {
+              content: creator
+            }
+          }]
+        },
+        ContentSnippet: {
+          rich_text: [{
+            type: 'text',
+            text: {
+              content: contentSnippet.substring(0, 1000)
+            }
+          }]
+        },
+        Description: {
+          rich_text: [{
+            type: 'text',
+            text: {
+              content: description ? JSON.stringify(description) : ''
+            }
+          }]
         }
       },
-      children: content
+      children: [{
+        object: 'block',
+        type: 'embed',
+        embed: {
+          url: link
+        }
+      }]
     });
   } catch (err) {
     console.error(err);
   }
-}
+} // format:
+// block_full_width: false
+// block_height: 930
+// block_page_width: true
+// block_preserve_scale: false
+// block_width: 672
+// display_source: "https://news.bitcoin.com/nigerian-fintech-founder-african-fintechs-have-a-greater-scale-potential-than-other-tech-startups/"
+// format?: {
+//   block_width: number
+//   block_height: number
+//   display_source: string
+//   block_full_width: boolean
+//   block_page_width: boolean
+//   block_aspect_ratio: number
+//   block_preserve_scale: boolean
+// }
+// file_ids?: string[]
+// }
+
 async function deleteOldUnreadFeedItemsFromNotion() {
   const notion = new src/* Client */.KU({
     auth: NOTION_API_TOKEN,
@@ -48224,7 +48288,7 @@ async function getNewFeedItemsFrom(feedUrl) {
   let rss;
 
   try {
-    rss = await parser.parseURL(feedUrl);
+    rss = await parser.parseURL(feedUrl); // console.log(rss, 'rss');
   } catch (error) {
     console.error(error);
     return [];
@@ -48242,7 +48306,7 @@ async function getNewFeedItemsFrom(feedUrl) {
 
 async function getNewFeedItems() {
   let allNewFeedItems = [];
-  const feeds = await getFeedUrlsFromNotion();
+  const feeds = await getFeedUrlsFromNotion(); //console.log(feeds, 'feeds');
 
   for (let i = 0; i < feeds.length; i++) {
     const {
@@ -48250,7 +48314,8 @@ async function getNewFeedItems() {
     } = feeds[i];
     const feedItems = await getNewFeedItemsFrom(feedUrl);
     allNewFeedItems = [...allNewFeedItems, ...feedItems];
-  } // sort feed items by published date
+  } //console.log(allNewFeedItems, "rss-parser")
+  // sort feed items by published date
 
 
   allNewFeedItems.sort((a, b) => new Date(a.pubDate) - new Date(b.pubDate));
@@ -49232,22 +49297,97 @@ function htmlToNotionBlocks(htmlContent) {
 
 
 async function index() {
-  const feedItems = await getNewFeedItems();
+  //console.log('Start','data' );
+  const feedItems = await getNewFeedItems(); //console.log(feedItems, "feedItems" );
 
   for (let i = 0; i < feedItems.length; i++) {
     const item = feedItems[i];
     const notionItem = {
       title: item.title,
       link: item.link,
+      categories: item.categories,
+      contentSnippet: item.contentSnippet,
+      isoDate: item.isoDate,
+      creator: item.creator,
+      image: getImage(item),
+      description: item.description,
+      contentRaw: item['content:encoded'],
       content: htmlToNotionBlocks(item.content)
-    };
+    }; //console.log('___________________________________________________');
+    //console.log(item);
+    //console.log('___________________________________________________');
+
     await addFeedItemToNotion(notionItem);
   }
 
   await deleteOldUnreadFeedItemsFromNotion();
 }
 
-index();
+function findImageUrl(val) {
+  const imgRex = /<img.*?src="(.*?)"[^>]+>/g;
+  const images = [];
+  let img;
+  console.log(val, 'data');
+  console.log(imgRex.exec(val), 'data'); // eslint-disable-next-line no-cond-assign
+
+  while (img = imgRex.exec(val)) {
+    console.log(img, 'data');
+    images.push(img[1]);
+  }
+
+  if (images.length) {
+    console.log('_________________________________', 'data');
+    console.log(images, 'data');
+  }
+
+  return images.length ? images[0] : 'https://akcdn.detik.net.id/visual/2021/05/25/ilustrasi-cryptocurrency-aristya-rahadian_169.jpeg?w=715&q=90';
+}
+
+function getImage(item) {
+  if (item.image) {
+    return item.image;
+  }
+
+  if (item.enclosure) {
+    return item.enclosure.url;
+  }
+
+  if (item['content:encoded' || 0]) {
+    return findImageUrl(item['content:encoded'] || item.content);
+  }
+
+  return 'https://akcdn.detik.net.id/visual/2021/05/25/ilustrasi-cryptocurrency-aristya-rahadian_169.jpeg?w=715&q=90';
+}
+
+index(); // import getNewFeedItems from './feed';
+// import {
+//   addFeedItemToNotion,
+//   deleteOldUnreadFeedItemsFromNotion,
+// } from './notion';
+// import htmlToNotionBlocks from './parser';
+// async function index() {
+//   const feedItems = await getNewFeedItems();
+//   for (let i = 0; i < feedItems.length; i++) {
+//     const item = feedItems[i];
+//     const notionItem = {
+//       title: item.title,
+//       link: item.link,
+//       categories: item.categories,
+//       contentSnippet: item.contentSnippet,
+//       isoDate: item.isoDate,
+//       creator: item.creator,
+//       description: item.description,
+//       contentRaw:item["content:encoded"],
+//       content:htmlToNotionBlocks(`<a src='${item.link}'>Link</a>`)
+//       //content: htmlToNotionBlocks(item["content:encoded"]||item.content),
+//     };
+//     console.log(htmlToNotionBlocks(notionItem.contentRaw, 'data')
+//     //console.log(htmlToNotionBlocks(notionItem.content, 'link')
+//     await addFeedItemToNotion(notionItem);
+//   }
+//   await deleteOldUnreadFeedItemsFromNotion();
+// }
+// index();
 })();
 
 /******/ })()
