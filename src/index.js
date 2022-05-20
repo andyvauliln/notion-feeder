@@ -1,18 +1,23 @@
 import getNewFeedItems from './feed';
 import {
   addFeedItemToNotion,
+  getExistingPages,
   deleteOldUnreadFeedItemsFromNotion,
 } from './notion';
 import htmlToNotionBlocks from './parser';
 
 async function index() {
-  //console.log('Start','data' );
-  
   const feedItems = await getNewFeedItems();
-  //console.log(feedItems, "feedItems" );
+  const existingPages = await getExistingPages(feedItems);
 
   for (let i = 0; i < feedItems.length; i++) {
     const item = feedItems[i];
+
+    const existingEntries = existingPages.find(
+      (page) => page.properties.Link.url === item.link
+    );
+
+    const isNewEntry = existingEntries === undefined;
 
     const notionItem = {
       title: item.title,
@@ -27,10 +32,9 @@ async function index() {
       content: htmlToNotionBlocks(item.content),
     };
 
-    //console.log('___________________________________________________');
-    //console.log(item);
-    //console.log('___________________________________________________');
-    await addFeedItemToNotion(notionItem);
+    if (isNewEntry) {
+      await addFeedItemToNotion(notionItem);
+    }
   }
 
   await deleteOldUnreadFeedItemsFromNotion();
